@@ -4,6 +4,15 @@ project(vrpn_client_ros)
 find_package(catkin REQUIRED COMPONENTS geometry_msgs roscpp tf2_ros)
 find_package(VRPN REQUIRED)
 
+add_message_files(
+  FILES
+  PoseVelStamped.msg
+)
+
+generate_messages(
+   DEPENDENCIES geometry_msgs   std_msgs
+)
+
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES vrpn_client_ros

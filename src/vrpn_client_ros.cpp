@@ -144,6 +144,7 @@ namespace vrpn_client_ros
     VrpnTrackerRos *tracker = static_cast<VrpnTrackerRos *>(userData);
 
     ros::Publisher *pose_pub;
+    ros::Publisher *pose_vel_pub;
     std::size_t sensor_index(0);
     ros::NodeHandle nh = tracker->output_nh_;
     
@@ -158,10 +159,12 @@ namespace vrpn_client_ros
       tracker->pose_pubs_.resize(sensor_index + 1);
     }
     pose_pub = &(tracker->pose_pubs_[sensor_index]);
+    pose_vel_pub = &(tracker->pose_vel_pub_[sensor_index]);
 
     if (pose_pub->getTopic().empty())
     {
       *pose_pub = nh.advertise<geometry_msgs::PoseStamped>("pose", 1);
+      *pose_vel_pub = nh.advertise<vrpn_client_ros::PoseVelStamped>("pose_vel", 1);
     }
 
     if (pose_pub->getNumSubscribers() > 0)
@@ -170,6 +173,9 @@ namespace vrpn_client_ros
       {
         tracker->pose_msg_.header.stamp.sec = tracker_pose.msg_time.tv_sec;
         tracker->pose_msg_.header.stamp.nsec = tracker_pose.msg_time.tv_usec * 1000;
+
+        tracker->pose_vel_msg_.header.stamp.sec = tracker->pose_msg_.header.stamp.sec;
+        tracker->pose_vel_msg_.header.stamp.nsec = tracker->pose_msg_.header.stamp.nsec;
       }
       else
       {
@@ -185,7 +191,12 @@ namespace vrpn_client_ros
       tracker->pose_msg_.pose.orientation.z = tracker_pose.quat[2];
       tracker->pose_msg_.pose.orientation.w = tracker_pose.quat[3];
 
+      tracker->pose_vel_msg_.position = tracker->pose_msg_.pose.position;
+      tracker->pose_vel_msg_.orientation = tracker->pose_msg_.pose.orientation;
+
+      // publishing the pose information
       pose_pub->publish(tracker->pose_msg_);
+      pose_vel_pub->publish(tracker->pose_msg_);
     }
 
     if (tracker->broadcast_tf_)
