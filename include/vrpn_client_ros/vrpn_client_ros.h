@@ -91,7 +91,6 @@ namespace vrpn_client_ros
     geometry_msgs::AccelStamped accel_msg_;
     geometry_msgs::TransformStamped transform_stamped_;
 
-    vrpn_client_ros::PoseVelStamped pose_vel_msg_;
 
     void init(std::string tracker_name, ros::NodeHandle nh, bool create_mainloop_timer);
 
@@ -100,6 +99,19 @@ namespace vrpn_client_ros
     static void VRPN_CALLBACK handle_twist(void *userData, const vrpn_TRACKERVELCB tracker_twist);
 
     static void VRPN_CALLBACK handle_accel(void *userData, const vrpn_TRACKERACCCB tracker_accel);
+  
+
+    // customized 
+    bool IS_INITIALIZED;
+    float dt;
+    float dx_dt, dy_dt, dz_dt;
+
+    float tau;
+    float alpha;
+
+    vrpn_client_ros::PoseVelStamped pose_vel_msg_;
+    vrpn_client_ros::PoseVelStamped pose_vel_prev;
+
   };
 
   class VrpnClientRos

@@ -79,6 +79,12 @@ namespace vrpn_client_ros
     }
 
     init(clean_name, nh, false);
+
+    // custom code
+    dt = 0.0;
+    IS_INITIALIZED = false;
+    alpha = 1.0;
+    tau  = 0.02;
   }
 
   VrpnTrackerRos::VrpnTrackerRos(std::string tracker_name, std::string host, ros::NodeHandle nh)
@@ -157,7 +163,9 @@ namespace vrpn_client_ros
     if (tracker->pose_pubs_.size() <= sensor_index)
     {
       tracker->pose_pubs_.resize(sensor_index + 1);
+      tracker->pose_vel_pub_.resize(sensor_index+1);
     }
+
     pose_pub = &(tracker->pose_pubs_[sensor_index]);
     pose_vel_pub = &(tracker->pose_vel_pub_[sensor_index]);
 
@@ -180,6 +188,7 @@ namespace vrpn_client_ros
       else
       {
         tracker->pose_msg_.header.stamp = ros::Time::now();
+        tracker->pose_vel_msg_.header.stamp = tracker->pose_msg_.header.stamp;
       }
 
       tracker->pose_msg_.pose.position.x = tracker_pose.pos[0];
@@ -191,12 +200,40 @@ namespace vrpn_client_ros
       tracker->pose_msg_.pose.orientation.z = tracker_pose.quat[2];
       tracker->pose_msg_.pose.orientation.w = tracker_pose.quat[3];
 
+      /************** calculating velocity ***************/
       tracker->pose_vel_msg_.position = tracker->pose_msg_.pose.position;
       tracker->pose_vel_msg_.orientation = tracker->pose_msg_.pose.orientation;
 
+      if (tracker->IS_INITIALIZED == false)
+      {
+        tracker->pose_vel_msg_.velocity.x = 0.0;
+        tracker->pose_vel_msg_.velocity.y = 0.0;
+        tracker->pose_vel_msg_.velocity.z = 0.0;
+        tracker->IS_INITIALIZED = true;
+      }
+      else
+      {
+        tracker->dt = tracker->pose_vel_msg_.header.stamp.toSec() - tracker->pose_vel_prev.header.stamp.toSec();
+        tracker->alpha = 1 - exp(-tracker->dt/tracker->tau);
+        
+        // finite difference
+        tracker->dx_dt = (tracker->pose_vel_msg_.position.x - tracker->pose_vel_prev.position.x)/tracker->dt;
+        tracker->dy_dt = (tracker->pose_vel_msg_.position.y - tracker->pose_vel_prev.position.y)/tracker->dt;
+        tracker->dz_dt = (tracker->pose_vel_msg_.position.z - tracker->pose_vel_prev.position.z)/tracker->dt;
+        
+        tracker->pose_vel_msg_.velocity.x = tracker->alpha*tracker->dx_dt + (1-tracker->alpha)*tracker->pose_vel_prev.velocity.x;
+        tracker->pose_vel_msg_.velocity.y = tracker->alpha*tracker->dy_dt + (1-tracker->alpha)*tracker->pose_vel_prev.velocity.y;
+        tracker->pose_vel_msg_.velocity.z = tracker->alpha*tracker->dz_dt + (1-tracker->alpha)*tracker->pose_vel_prev.velocity.z;
+
+      }
+      // storing state for next iteration
+      tracker->pose_vel_prev = tracker->pose_vel_msg_;
+
+      /************** calculating velocity ***************/
+
       // publishing the pose information
       pose_pub->publish(tracker->pose_msg_);
-      pose_vel_pub->publish(tracker->pose_msg_);
+      pose_vel_pub->publish(tracker->pose_vel_msg_);
     }
 
     if (tracker->broadcast_tf_)
