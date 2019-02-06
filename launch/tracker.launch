@@ -2,10 +2,12 @@
 
   <arg name="server" default="192.168.1.9"/>
 
-  <node pkg="vrpn_client_ros" type="vrpn_client_node" name="vrpn_client_node" output="screen">
+  <node pkg="vrpn_client_ros" type="vrpn_tracker_node" name="vrpn_tracker_node" output="screen">
     <rosparam subst_value="true">
       server: $(arg server)
       port: 3883
+
+      tracker_name: "qrotor2"
 
       update_frequency: 200.0
       frame_id: world

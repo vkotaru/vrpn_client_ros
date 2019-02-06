@@ -214,8 +214,9 @@ namespace vrpn_client_ros
       else
       {
         tracker->dt = tracker->pose_vel_msg_.header.stamp.toSec() - tracker->pose_vel_prev.header.stamp.toSec();
-        tracker->alpha = 1 - exp(-tracker->dt/tracker->tau);
-        
+        printf("freq: %f\n",1/(tracker->dt) );
+        tracker->alpha = 1 ; //- exp(-tracker->dt/tracker->tau);
+          
         // finite difference
         tracker->dx_dt = (tracker->pose_vel_msg_.position.x - tracker->pose_vel_prev.position.x)/tracker->dt;
         tracker->dy_dt = (tracker->pose_vel_msg_.position.y - tracker->pose_vel_prev.position.y)/tracker->dt;
@@ -228,6 +229,18 @@ namespace vrpn_client_ros
       }
       // storing state for next iteration
       tracker->pose_vel_prev = tracker->pose_vel_msg_;
+      // tracker->pose_vel_prev.position.x = tracker->pose_vel_msg_.position.x;
+      // tracker->pose_vel_prev.position.y = tracker->pose_vel_msg_.position.y;
+      // tracker->pose_vel_prev.position.z = tracker->pose_vel_msg_.position.z;
+
+      // tracker->pose_vel_prev.velocity.x = tracker->pose_vel_msg_.velocity.x;
+      // tracker->pose_vel_prev.velocity.y = tracker->pose_vel_msg_.velocity.y;
+      // tracker->pose_vel_prev.velocity.z = tracker->pose_vel_msg_.velocity.z;
+
+      // tracker->pose_vel_prev.orientation.x = tracker->pose_vel_msg_.orientation.x;
+      // tracker->pose_vel_prev.orientation.y = tracker->pose_vel_msg_.orientation.y;
+      // tracker->pose_vel_prev.orientation.z = tracker->pose_vel_msg_.orientation.z;
+      // tracker->pose_vel_prev.orientation.w = tracker->pose_vel_msg_.orientation.w;
 
       /************** calculating velocity ***************/
 
