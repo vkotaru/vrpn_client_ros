@@ -47,6 +47,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <math.h>       /* exp */
+
 namespace vrpn_client_ros
 {
 
@@ -77,6 +79,8 @@ namespace vrpn_client_ros
      */
     void mainloop();
 
+    void pose_publish(const vrpn_TRACKERCB tracker_pose);
+
   private:
     TrackerRemotePtr tracker_remote_;
     std::vector<ros::Publisher> pose_pubs_, twist_pubs_, accel_pubs_, pose_vel_pub_;
@@ -102,12 +106,13 @@ namespace vrpn_client_ros
   
 
     // customized 
-    bool IS_INITIALIZED;
+    bool FLAG_INITIAL_DT;
+    bool FLAG_INITIAL_VELOCITY;
+    bool FLAG_PUBLISH;
     float dt;
     float dx_dt, dy_dt, dz_dt;
 
-    float tau;
-    float alpha;
+    float wc, Ts, alpha;
 
     vrpn_client_ros::PoseVelStamped pose_vel_msg_;
     vrpn_client_ros::PoseVelStamped pose_vel_prev;

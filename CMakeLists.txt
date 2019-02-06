@@ -44,6 +44,15 @@ target_link_libraries(vrpn_tracker_node
   ${catkin_LIBRARIES}
 )
 
+add_executable(vrpn_custom_node
+  src/vrpn_custom_tracker.cpp)
+add_dependencies(vrpn_custom_node vrpn_client_ros)
+target_link_libraries(vrpn_custom_node
+  vrpn_client_ros
+  ${catkin_LIBRARIES}
+)
+
+
 add_executable(vrpn_client_node
   src/vrpn_client_node.cpp)
 add_dependencies(vrpn_client_node vrpn_client_ros)

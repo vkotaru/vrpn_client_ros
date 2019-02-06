@@ -78,13 +78,15 @@ namespace vrpn_client_ros
       clean_name.erase( std::remove_if( clean_name.begin() + start_subsequent, clean_name.end(), isInvalidSubsequentCharInName ), clean_name.end() );
     }
 
-    init(clean_name, nh, false);
-
     // custom code
     dt = 0.0;
-    IS_INITIALIZED = false;
-    alpha = 1.0;
-    tau  = 0.02;
+    FLAG_INITIAL_DT = true;
+    FLAG_INITIAL_VELOCITY = true;
+    FLAG_PUBLISH =  true;
+
+    init(clean_name, nh, false);
+
+
   }
 
   VrpnTrackerRos::VrpnTrackerRos(std::string tracker_name, std::string host, ros::NodeHandle nh)
@@ -123,13 +125,29 @@ namespace vrpn_client_ros
 
     pose_msg_.header.frame_id = twist_msg_.header.frame_id = accel_msg_.header.frame_id = transform_stamped_.header.frame_id = frame_id;
 
-    if (create_mainloop_timer)
-    {
+    // if (create_mainloop_timer)
+    // {
+    //   double update_frequency;
+    //   // if (!nh.getParam("update_frequency", update_frequency))
+    //   // {
+    //   //   ROS_WARN("Must provide paramter tracker_name for node %s", nh.getNamespace());
+    //   // }
+    //   // else 
+    //   // {
+    //   nh.param<double>("update_frequency", update_frequency, 200.0);        
+    //   ROS_INFO("update_frequency %f",update_frequency);
+    //   // }
+
+      this->alpha = 1.0;
+      this->wc = 20.0;
+      this->Ts = 1.0/200;
+      this->alpha = 1.0-exp(-this->wc*this->Ts);
+    
       double update_frequency;
-      nh.param<double>("update_frequency", update_frequency, 100.0);
+      update_frequency = 200.0; 
       mainloop_timer = nh.createTimer(ros::Duration(1 / update_frequency),
                                       boost::bind(&VrpnTrackerRos::mainloop, this));
-    }
+    // }
   }
 
   VrpnTrackerRos::~VrpnTrackerRos()
@@ -143,6 +161,86 @@ namespace vrpn_client_ros
   void VrpnTrackerRos::mainloop()
   {
     tracker_remote_->mainloop();
+  }
+
+  void VrpnTrackerRos::pose_publish(const vrpn_TRACKERCB tracker_pose) 
+  {
+
+    if (this->use_server_time_)
+    {
+      this->pose_msg_.header.stamp.sec = tracker_pose.msg_time.tv_sec;
+      this->pose_msg_.header.stamp.nsec = tracker_pose.msg_time.tv_usec * 1000;
+
+      this->pose_vel_msg_.header.stamp.sec = this->pose_msg_.header.stamp.sec;
+      this->pose_vel_msg_.header.stamp.nsec = this->pose_msg_.header.stamp.nsec;
+    }
+    else
+    {
+      this->pose_msg_.header.stamp = ros::Time::now();
+      this->pose_vel_msg_.header.stamp = this->pose_msg_.header.stamp;
+    }
+
+
+    // time update
+    if (this->FLAG_INITIAL_DT) 
+    {
+      this->dt = this->pose_vel_msg_.header.stamp.toSec() - this->pose_vel_prev.header.stamp.toSec();
+      this->pose_vel_prev = this->pose_vel_msg_;      
+
+      this->FLAG_INITIAL_DT = false;
+    }
+
+    if ((this->pose_vel_msg_.header.stamp.toSec() - this->pose_vel_prev.header.stamp.toSec()) > 1.0/1000)
+    {
+      this->dt = this->pose_vel_msg_.header.stamp.toSec() - this->pose_vel_prev.header.stamp.toSec();
+      ROS_INFO("freq: %f, alpha: %f\n",1/(this->dt), this->alpha );
+      
+      this->pose_msg_.pose.position.x = tracker_pose.pos[0];
+      this->pose_msg_.pose.position.y = tracker_pose.pos[1];
+      this->pose_msg_.pose.position.z = tracker_pose.pos[2];
+
+      this->pose_msg_.pose.orientation.x = tracker_pose.quat[0];
+      this->pose_msg_.pose.orientation.y = tracker_pose.quat[1];
+      this->pose_msg_.pose.orientation.z = tracker_pose.quat[2];
+      this->pose_msg_.pose.orientation.w = tracker_pose.quat[3];
+
+      /************** calculating velocity ***************/
+      this->pose_vel_msg_.position = this->pose_msg_.pose.position;
+      this->pose_vel_msg_.orientation = this->pose_msg_.pose.orientation;
+
+      if (this->FLAG_INITIAL_VELOCITY)
+      {
+        this->pose_vel_msg_.velocity.x = 0.0;
+        this->pose_vel_msg_.velocity.y = 0.0;
+        this->pose_vel_msg_.velocity.z = 0.0;
+
+        this->FLAG_INITIAL_VELOCITY = false;
+      }
+      else
+      {
+        // tracker->alpha = 1 ; //- exp(-tracker->dt/tracker->tau);
+        // finite difference
+        this->dx_dt = (this->pose_vel_msg_.position.x - this->pose_vel_prev.position.x)/this->dt;
+        this->dy_dt = (this->pose_vel_msg_.position.y - this->pose_vel_prev.position.y)/this->dt;
+        this->dz_dt = (this->pose_vel_msg_.position.z - this->pose_vel_prev.position.z)/this->dt;
+        
+        // exponential smoothening
+        this->pose_vel_msg_.velocity.x = this->alpha*this->dx_dt + (1-this->alpha)*this->pose_vel_prev.velocity.x;
+        this->pose_vel_msg_.velocity.y = this->alpha*this->dy_dt + (1-this->alpha)*this->pose_vel_prev.velocity.y;
+        this->pose_vel_msg_.velocity.z = this->alpha*this->dz_dt + (1-this->alpha)*this->pose_vel_prev.velocity.z;
+      }
+
+      // storing current pose for next iteration
+      this->pose_vel_prev = this->pose_vel_msg_;
+
+      // 
+      this->FLAG_PUBLISH = true;
+    }
+    else
+    {
+      this->FLAG_PUBLISH = false;
+    }
+
   }
 
   void VRPN_CALLBACK VrpnTrackerRos::handle_pose(void *userData, const vrpn_TRACKERCB tracker_pose)
@@ -175,79 +273,17 @@ namespace vrpn_client_ros
       *pose_vel_pub = nh.advertise<vrpn_client_ros::PoseVelStamped>("pose_vel", 1);
     }
 
-    if (pose_pub->getNumSubscribers() > 0)
+    // ********** pose publishing **********
+    tracker->pose_publish(tracker_pose);
+
+    // publishing the pose information
+    if (tracker->FLAG_PUBLISH)
     {
-      if (tracker->use_server_time_)
-      {
-        tracker->pose_msg_.header.stamp.sec = tracker_pose.msg_time.tv_sec;
-        tracker->pose_msg_.header.stamp.nsec = tracker_pose.msg_time.tv_usec * 1000;
-
-        tracker->pose_vel_msg_.header.stamp.sec = tracker->pose_msg_.header.stamp.sec;
-        tracker->pose_vel_msg_.header.stamp.nsec = tracker->pose_msg_.header.stamp.nsec;
-      }
-      else
-      {
-        tracker->pose_msg_.header.stamp = ros::Time::now();
-        tracker->pose_vel_msg_.header.stamp = tracker->pose_msg_.header.stamp;
-      }
-
-      tracker->pose_msg_.pose.position.x = tracker_pose.pos[0];
-      tracker->pose_msg_.pose.position.y = tracker_pose.pos[1];
-      tracker->pose_msg_.pose.position.z = tracker_pose.pos[2];
-
-      tracker->pose_msg_.pose.orientation.x = tracker_pose.quat[0];
-      tracker->pose_msg_.pose.orientation.y = tracker_pose.quat[1];
-      tracker->pose_msg_.pose.orientation.z = tracker_pose.quat[2];
-      tracker->pose_msg_.pose.orientation.w = tracker_pose.quat[3];
-
-      /************** calculating velocity ***************/
-      tracker->pose_vel_msg_.position = tracker->pose_msg_.pose.position;
-      tracker->pose_vel_msg_.orientation = tracker->pose_msg_.pose.orientation;
-
-      if (tracker->IS_INITIALIZED == false)
-      {
-        tracker->pose_vel_msg_.velocity.x = 0.0;
-        tracker->pose_vel_msg_.velocity.y = 0.0;
-        tracker->pose_vel_msg_.velocity.z = 0.0;
-        tracker->IS_INITIALIZED = true;
-      }
-      else
-      {
-        tracker->dt = tracker->pose_vel_msg_.header.stamp.toSec() - tracker->pose_vel_prev.header.stamp.toSec();
-        printf("freq: %f\n",1/(tracker->dt) );
-        tracker->alpha = 1 ; //- exp(-tracker->dt/tracker->tau);
-          
-        // finite difference
-        tracker->dx_dt = (tracker->pose_vel_msg_.position.x - tracker->pose_vel_prev.position.x)/tracker->dt;
-        tracker->dy_dt = (tracker->pose_vel_msg_.position.y - tracker->pose_vel_prev.position.y)/tracker->dt;
-        tracker->dz_dt = (tracker->pose_vel_msg_.position.z - tracker->pose_vel_prev.position.z)/tracker->dt;
-        
-        tracker->pose_vel_msg_.velocity.x = tracker->alpha*tracker->dx_dt + (1-tracker->alpha)*tracker->pose_vel_prev.velocity.x;
-        tracker->pose_vel_msg_.velocity.y = tracker->alpha*tracker->dy_dt + (1-tracker->alpha)*tracker->pose_vel_prev.velocity.y;
-        tracker->pose_vel_msg_.velocity.z = tracker->alpha*tracker->dz_dt + (1-tracker->alpha)*tracker->pose_vel_prev.velocity.z;
-
-      }
-      // storing state for next iteration
-      tracker->pose_vel_prev = tracker->pose_vel_msg_;
-      // tracker->pose_vel_prev.position.x = tracker->pose_vel_msg_.position.x;
-      // tracker->pose_vel_prev.position.y = tracker->pose_vel_msg_.position.y;
-      // tracker->pose_vel_prev.position.z = tracker->pose_vel_msg_.position.z;
-
-      // tracker->pose_vel_prev.velocity.x = tracker->pose_vel_msg_.velocity.x;
-      // tracker->pose_vel_prev.velocity.y = tracker->pose_vel_msg_.velocity.y;
-      // tracker->pose_vel_prev.velocity.z = tracker->pose_vel_msg_.velocity.z;
-
-      // tracker->pose_vel_prev.orientation.x = tracker->pose_vel_msg_.orientation.x;
-      // tracker->pose_vel_prev.orientation.y = tracker->pose_vel_msg_.orientation.y;
-      // tracker->pose_vel_prev.orientation.z = tracker->pose_vel_msg_.orientation.z;
-      // tracker->pose_vel_prev.orientation.w = tracker->pose_vel_msg_.orientation.w;
-
-      /************** calculating velocity ***************/
-
-      // publishing the pose information
       pose_pub->publish(tracker->pose_msg_);
       pose_vel_pub->publish(tracker->pose_vel_msg_);
     }
+    // *************************************
+
 
     if (tracker->broadcast_tf_)
     {
