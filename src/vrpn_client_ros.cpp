@@ -142,7 +142,7 @@ namespace vrpn_client_ros
       this->wc = 20.0;
       this->Ts = 1.0/200;
       this->alpha = 1.0-exp(-this->wc*this->Ts);
-    
+      // this->alpha = 0.05;
       double update_frequency;
       update_frequency = 200.0; 
       mainloop_timer = nh.createTimer(ros::Duration(1 / update_frequency),

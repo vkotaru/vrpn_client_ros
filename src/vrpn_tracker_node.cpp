@@ -32,6 +32,7 @@
 #include "vrpn_client_ros/vrpn_client_ros.h"
 
 #include <string>
+#include <iostream>
 
 int main(int argc, char **argv)
 {
@@ -43,6 +44,8 @@ int main(int argc, char **argv)
   {
     ROS_FATAL_STREAM("Must provide paramter tracker_name for node " << private_nh.getNamespace());
   }
+
+  std::cout << "tracker name: " << tracker_name << std::endl;
 
   std::string host = vrpn_client_ros::VrpnClientRos::getHostStringFromParams(private_nh);
   vrpn_client_ros::VrpnTrackerRos tracker(tracker_name, host, nh);
