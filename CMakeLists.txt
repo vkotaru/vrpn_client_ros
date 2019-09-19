@@ -1,17 +1,33 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(vrpn_client_ros)
 
-find_package(catkin REQUIRED COMPONENTS geometry_msgs roscpp tf2_ros)
+find_package(catkin REQUIRED COMPONENTS 
+genmsg
+geometry_msgs 
+roscpp 
+tf2_ros 
+message_generation)
 find_package(VRPN REQUIRED)
+
 
 add_message_files(
   FILES
   PoseVelStamped.msg
 )
-
 generate_messages(
-   DEPENDENCIES geometry_msgs   std_msgs
+  DEPENDENCIES
+  geometry_msgs
+  std_msgs
 )
+
+# add_message_files(
+#   FILES
+#   PoseVelStamped.msg
+# )
+
+# generate_messages(
+#    DEPENDENCIES geometry_msgs   std_msgs
+# )
 
 catkin_package(
   INCLUDE_DIRS include
@@ -61,24 +77,24 @@ target_link_libraries(vrpn_client_node
   ${catkin_LIBRARIES}
 )
 
-install(TARGETS vrpn_client_ros vrpn_tracker_node vrpn_client_node
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+# install(TARGETS vrpn_client_ros vrpn_tracker_node vrpn_client_node
+#   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+# )
 
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-)
+# install(DIRECTORY include/${PROJECT_NAME}/
+#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+# )
 
-install(DIRECTORY launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
+# install(DIRECTORY launch
+#   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+# )
 
-if(CATKIN_ENABLE_TESTING)
-  find_package(roslaunch REQUIRED)
-  find_package(roslint REQUIRED)
-  roslint_cpp()
-  roslint_add_test()
-  roslaunch_add_file_check(launch)
-endif()
+# if(CATKIN_ENABLE_TESTING)
+#   find_package(roslaunch REQUIRED)
+#   find_package(roslint REQUIRED)
+#   roslint_cpp()
+#   roslint_add_test()
+#   roslaunch_add_file_check(launch)
+# endif()
