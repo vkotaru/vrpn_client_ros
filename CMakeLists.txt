@@ -20,15 +20,6 @@ generate_messages(
   std_msgs
 )
 
-# add_message_files(
-#   FILES
-#   PoseVelStamped.msg
-# )
-
-# generate_messages(
-#    DEPENDENCIES geometry_msgs   std_msgs
-# )
-
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES vrpn_client_ros
@@ -52,29 +43,21 @@ target_link_libraries(vrpn_client_ros
   ${VRPN_LIBRARIES}
 )
 
-add_executable(vrpn_tracker_node
-  src/vrpn_tracker_node.cpp)
-add_dependencies(vrpn_tracker_node vrpn_client_ros)
-target_link_libraries(vrpn_tracker_node
-  vrpn_client_ros
-  ${catkin_LIBRARIES}
+# add_dependencies(your_program msg_pkg_generate_messages_cpp)
+add_executable(vrpn_tracker_node  src/vrpn_tracker_node.cpp)
+add_dependencies(vrpn_tracker_node vrpn_client_ros vrpn_client_ros_generate_messages_cpp)
+target_link_libraries(vrpn_tracker_node  vrpn_client_ros  ${catkin_LIBRARIES}
 )
 
-add_executable(vrpn_custom_node
-  src/vrpn_custom_tracker.cpp)
-add_dependencies(vrpn_custom_node vrpn_client_ros)
-target_link_libraries(vrpn_custom_node
-  vrpn_client_ros
-  ${catkin_LIBRARIES}
+add_executable(vrpn_custom_node src/vrpn_custom_tracker.cpp)
+add_dependencies(vrpn_custom_node vrpn_client_ros vrpn_client_ros_generate_messages_cpp)
+target_link_libraries(vrpn_custom_node  vrpn_client_ros  ${catkin_LIBRARIES}
 )
 
 
-add_executable(vrpn_client_node
-  src/vrpn_client_node.cpp)
-add_dependencies(vrpn_client_node vrpn_client_ros)
-target_link_libraries(vrpn_client_node
-  vrpn_client_ros
-  ${catkin_LIBRARIES}
+add_executable(vrpn_client_node   src/vrpn_client_node.cpp)
+add_dependencies(vrpn_client_node vrpn_client_ros vrpn_client_ros_generate_messages_cpp)
+target_link_libraries(vrpn_client_node  vrpn_client_ros  ${catkin_LIBRARIES}
 )
 
 # install(TARGETS vrpn_client_ros vrpn_tracker_node vrpn_client_node
